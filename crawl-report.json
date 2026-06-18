@@ -1,0 +1,14 @@
+{
+  "lastRunAt": "2026-06-18T13:14:58.677Z",
+  "seedUrlCount": 8,
+  "discoveredUrlCount": 35,
+  "fetchedPageCount": 42,
+  "assetCount": 46,
+  "newCandidateCount": 30,
+  "errors": [
+    {
+      "url": "https://www.mastercard.com/us/en/news-and-trends/Insights/",
+      "status": 404
+    }
+  ]
+}
