@@ -1,0 +1,13 @@
+.atlas-workbench {
+  display: grid;
+  grid-template-columns: minmax(640px, 1fr) 444px;
+  align-items: start;
+  min-height: calc(100vh - 72px);
+}
+
+.content-stage {
+  min-width: 0;
+  padding: 24px 16px 40px 34px;
+  border-right: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.54);
+}
