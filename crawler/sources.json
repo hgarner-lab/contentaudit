@@ -1,0 +1,28 @@
+{
+  "sources": [
+    {
+      "id": "mastercard-cyber-core",
+      "label": "Mastercard cybersecurity core pages",
+      "cadence": "daily",
+      "enabled": true,
+      "urls": [
+        "https://www.mastercard.com/us/en/business/cybersecurity-fraud-prevention.html",
+        "https://www.mastercard.com/us/en/business/cybersecurity-fraud-prevention/cybersecurity.html",
+        "https://www.mastercard.com/us/en/news-and-trends/Insights/2026/cyber-fraud-integration-for-the-new-age-of-risk.html",
+        "https://www.mastercard.com/us/en/news-and-trends/stories/2026/cybersecurity-age-of-agentic.html",
+        "https://www.mastercard.com/us/en/news-and-trends/Insights/2025/securing-small-businesses-white-papers.html",
+        "https://www.mastercard.com/us/en/news-and-trends/stories/2025/what-is-tokenization.html"
+      ]
+    },
+    {
+      "id": "mastercard-cyber-discovery",
+      "label": "Mastercard cybersecurity discovery hubs",
+      "cadence": "daily",
+      "enabled": true,
+      "urls": [
+        "https://www.mastercard.com/us/en/news-and-trends/featured-topic/cybersecurity-featured-topic.html",
+        "https://www.mastercard.com/us/en/news-and-trends/Insights/"
+      ]
+    }
+  ]
+}
