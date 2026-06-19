@@ -1,8 +1,8 @@
 import { contentAssets } from "./data.js";
 
 const OVERRIDE_KEY = "content-atlas-asset-overrides";
-const CRAWL_WORKFLOW_URL = "https://github.com/hgarner-lab/contentaudit/actions/workflows/crawl-mastercard.yml";
 let queued = false;
+let crawlReport = null;
 
 const readJson = (key, fallback) => {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
@@ -14,8 +14,22 @@ const assets = () => {
 const text = (node) => node?.textContent?.trim() || "";
 const esc = (value) => String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
 
+fetch("./crawl-report.json", { cache: "no-store" })
+  .then((response) => response.ok ? response.json() : null)
+  .then((report) => { crawlReport = report; queue(); })
+  .catch(() => {});
+
 function funnelStageLabel(asset) {
   return asset.funnel_stage || "Unassigned";
+}
+function relativeDate(value) {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return "Recently";
+  const diff = Math.floor((Date.now() - date.getTime()) / 86400000);
+  if (diff <= 0) return "Today";
+  if (diff === 1) return "Yesterday";
+  if (diff < 7) return `${diff} days ago`;
+  return new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(date);
 }
 
 function styles() {
@@ -65,25 +79,32 @@ function styles() {
       flex: 0 0 auto;
       margin: 4px 6px 0 0;
     }
-    .run-crawl-link {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      margin-top: 10px;
-      min-height: 30px;
-      padding: 0 11px;
-      border-radius: 999px;
-      background: #fff1ed;
-      color: #ff3b18;
-      border: 1px solid rgba(255, 59, 24, 0.2);
-      text-decoration: none;
-      font-weight: 800;
-      font-size: 12px;
+    .crawl-status {
+      display: grid !important;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 7px;
+      margin-top: 10px !important;
     }
-    .run-crawl-link:hover { background: #ffe5dd; }
+    .crawl-status span {
+      display: block !important;
+      padding: 8px 9px;
+      border: 1px solid #edf0f5;
+      border-radius: 12px;
+      background: #fbfcfe;
+      color: #647084 !important;
+      font-size: 11px !important;
+      line-height: 1.2;
+    }
+    .crawl-status b {
+      display: block;
+      color: #0c111d;
+      font-size: 13px;
+      margin-bottom: 2px;
+    }
     @media (max-width: 1180px) {
       .funnel-stage-legend { grid-template-columns: 1fr; }
       .metric[data-funnel-stage="true"] { min-height: 225px; }
+      .crawl-status { grid-template-columns: 1fr; }
     }
   `;
   document.head.appendChild(tag);
@@ -128,26 +149,26 @@ function patchFunnelStage() {
   if (small) small.innerHTML = `<div class="donut" style="background:conic-gradient(${gradient})" aria-hidden="true"></div><div class="funnel-stage-legend">${legend}</div>`;
 }
 
-function patchRunCrawlButton() {
+function patchLastUpdatedSummary() {
   const metric = [...document.querySelectorAll(".metric")].find((item) => text(item.querySelector("span")) === "Last Updated");
   if (!metric) return;
+  const strong = metric.querySelector("strong");
   const small = metric.querySelector("small");
-  if (!small || small.querySelector(".run-crawl-link")) return;
-  const link = document.createElement("a");
-  link.className = "run-crawl-link";
-  link.href = CRAWL_WORKFLOW_URL;
-  link.target = "_blank";
-  link.rel = "noreferrer";
-  link.textContent = "Run crawl";
-  link.title = "Open the GitHub Actions workflow and click Run workflow";
-  small.appendChild(link);
+  const report = crawlReport || {};
+  const lastRun = report.lastRunAt || report.last_run_at;
+  if (strong && lastRun) strong.textContent = relativeDate(lastRun);
+  if (!small) return;
+  const pages = report.fetchedPageCount ?? report.fetched_page_count ?? "--";
+  const candidates = report.newCandidateCount ?? report.new_candidate_count ?? "--";
+  const assetsCount = report.assetCount ?? assets().length;
+  small.innerHTML = `<div class="crawl-status"><span><b>${esc(pages)}</b>Pages checked</span><span><b>${esc(candidates)}</b>New candidates</span><span><b>${esc(assetsCount)}</b>Total assets</span><span><b>Daily</b>Auto crawl</span></div>`;
 }
 
 function patch() {
   styles();
   removeAllFilters();
   patchFunnelStage();
-  patchRunCrawlButton();
+  patchLastUpdatedSummary();
 }
 function queue() {
   if (queued) return;
