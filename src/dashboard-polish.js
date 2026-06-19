@@ -1,6 +1,7 @@
 import { contentAssets } from "./data.js";
 
 const OVERRIDE_KEY = "content-atlas-asset-overrides";
+const CRAWL_WORKFLOW_URL = "https://github.com/hgarner-lab/contentaudit/actions/workflows/crawl-mastercard.yml";
 let queued = false;
 
 const readJson = (key, fallback) => {
@@ -25,34 +26,64 @@ function styles() {
     .filter-chip.strong,
     .ui-filter-drawer { display: none !important; }
     .filter-bar { gap: 12px !important; }
-    .metric[data-funnel-stage="true"] { min-height: 168px; }
-    .metric[data-funnel-stage="true"] small { margin-top: 6px !important; }
+    .metric[data-funnel-stage="true"] {
+      min-height: 205px;
+      overflow: visible !important;
+    }
+    .metric[data-funnel-stage="true"] small {
+      display: block !important;
+      margin-top: 6px !important;
+    }
+    .metric[data-funnel-stage="true"] .donut {
+      width: 62px;
+      height: 62px;
+      margin: -44px 4px 0 auto;
+    }
     .funnel-stage-legend {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 5px 12px;
-      margin-top: 10px;
+      gap: 6px 12px;
+      margin-top: 14px;
+      padding-right: 4px;
       color: #647084;
       font-size: 12px;
       line-height: 1.25;
     }
     .funnel-stage-legend span {
       display: inline-flex !important;
-      align-items: center;
+      align-items: flex-start;
       min-width: 0;
       color: #647084 !important;
       font-size: 12px !important;
-      white-space: nowrap;
+      white-space: normal;
+      overflow-wrap: anywhere;
     }
     .funnel-stage-legend i {
       width: 8px;
       height: 8px;
       border-radius: 999px;
       flex: 0 0 auto;
-      margin-right: 6px;
+      margin: 4px 6px 0 0;
     }
+    .run-crawl-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 10px;
+      min-height: 30px;
+      padding: 0 11px;
+      border-radius: 999px;
+      background: #fff1ed;
+      color: #ff3b18;
+      border: 1px solid rgba(255, 59, 24, 0.2);
+      text-decoration: none;
+      font-weight: 800;
+      font-size: 12px;
+    }
+    .run-crawl-link:hover { background: #ffe5dd; }
     @media (max-width: 1180px) {
       .funnel-stage-legend { grid-template-columns: 1fr; }
+      .metric[data-funnel-stage="true"] { min-height: 225px; }
     }
   `;
   document.head.appendChild(tag);
@@ -97,10 +128,26 @@ function patchFunnelStage() {
   if (small) small.innerHTML = `<div class="donut" style="background:conic-gradient(${gradient})" aria-hidden="true"></div><div class="funnel-stage-legend">${legend}</div>`;
 }
 
+function patchRunCrawlButton() {
+  const metric = [...document.querySelectorAll(".metric")].find((item) => text(item.querySelector("span")) === "Last Updated");
+  if (!metric) return;
+  const small = metric.querySelector("small");
+  if (!small || small.querySelector(".run-crawl-link")) return;
+  const link = document.createElement("a");
+  link.className = "run-crawl-link";
+  link.href = CRAWL_WORKFLOW_URL;
+  link.target = "_blank";
+  link.rel = "noreferrer";
+  link.textContent = "Run crawl";
+  link.title = "Open the GitHub Actions workflow and click Run workflow";
+  small.appendChild(link);
+}
+
 function patch() {
   styles();
   removeAllFilters();
   patchFunnelStage();
+  patchRunCrawlButton();
 }
 function queue() {
   if (queued) return;
