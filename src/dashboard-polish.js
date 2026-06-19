@@ -22,6 +22,18 @@ fetch("./crawl-report.json", { cache: "no-store" })
 function funnelStageLabel(asset) {
   return asset.funnel_stage || "Unassigned";
 }
+function formatLabel(asset) {
+  const value = [asset.format, asset.source_type].join(" ").toLowerCase();
+  if (/solution|product|website|page|hub/.test(value)) return "Solution pages";
+  if (/report|whitepaper|research|study/.test(value)) return "Reports";
+  if (/news|press|article|story|insight|blog/.test(value)) return "Articles/news";
+  if (/video|webinar|podcast/.test(value)) return "Video/audio";
+  if (/social|linkedin/.test(value)) return "Social";
+  return asset.format || "Other";
+}
+function isLiveAsset(asset) {
+  return !/broken|inaccessible|archived|removed/i.test(asset.url_status || "");
+}
 function relativeDate(value) {
   const date = value ? new Date(value) : null;
   if (!date || Number.isNaN(date.getTime())) return "Recently";
@@ -30,6 +42,14 @@ function relativeDate(value) {
   if (diff === 1) return "Yesterday";
   if (diff < 7) return `${diff} days ago`;
   return new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(date);
+}
+function newThisWeekCount() {
+  if (crawlReport && Number.isFinite(Number(crawlReport.newCandidateCount))) return Number(crawlReport.newCandidateCount);
+  const now = Date.now();
+  return assets().filter((asset) => {
+    const date = asset.created_at ? new Date(asset.created_at) : null;
+    return date && !Number.isNaN(date.getTime()) && (now - date.getTime()) <= 7 * 86400000;
+  }).length;
 }
 
 function styles() {
@@ -40,19 +60,23 @@ function styles() {
     .filter-chip.strong,
     .ui-filter-drawer { display: none !important; }
     .filter-bar { gap: 12px !important; }
+    .metric[data-live-assets="true"] small,
+    .metric[data-funnel-stage="true"] small,
+    .metric[data-crawl-status="true"] small {
+      display: block !important;
+      margin-top: 6px !important;
+    }
+    .metric[data-live-assets="true"] { min-height: 160px; }
     .metric[data-funnel-stage="true"] {
       min-height: 205px;
       overflow: visible !important;
-    }
-    .metric[data-funnel-stage="true"] small {
-      display: block !important;
-      margin-top: 6px !important;
     }
     .metric[data-funnel-stage="true"] .donut {
       width: 62px;
       height: 62px;
       margin: -44px 4px 0 auto;
     }
+    .format-breakdown,
     .funnel-stage-legend {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -63,6 +87,7 @@ function styles() {
       font-size: 12px;
       line-height: 1.25;
     }
+    .format-breakdown span,
     .funnel-stage-legend span {
       display: inline-flex !important;
       align-items: flex-start;
@@ -71,6 +96,10 @@ function styles() {
       font-size: 12px !important;
       white-space: normal;
       overflow-wrap: anywhere;
+    }
+    .format-breakdown b {
+      color: #0c111d;
+      margin-left: 4px;
     }
     .funnel-stage-legend i {
       width: 8px;
@@ -101,10 +130,18 @@ function styles() {
       font-size: 13px;
       margin-bottom: 2px;
     }
+    .new-week-note {
+      display: block !important;
+      margin-top: 8px;
+      color: #647084 !important;
+      font-size: 13px !important;
+      line-height: 1.35;
+    }
     @media (max-width: 1180px) {
-      .funnel-stage-legend { grid-template-columns: 1fr; }
-      .metric[data-funnel-stage="true"] { min-height: 225px; }
+      .format-breakdown,
+      .funnel-stage-legend,
       .crawl-status { grid-template-columns: 1fr; }
+      .metric[data-funnel-stage="true"] { min-height: 225px; }
     }
   `;
   document.head.appendChild(tag);
@@ -115,6 +152,38 @@ function removeAllFilters() {
     if (/All Filters/i.test(text(button))) button.remove();
   });
   document.querySelectorAll(".ui-filter-drawer").forEach((drawer) => drawer.remove());
+}
+
+function patchLiveAssets() {
+  const metric = [...document.querySelectorAll(".metric")].find((item) => ["Total Assets", "Live Assets"].includes(text(item.querySelector("span"))));
+  if (!metric) return;
+  metric.dataset.liveAssets = "true";
+  const liveAssets = assets().filter(isLiveAsset);
+  const counts = liveAssets.reduce((acc, asset) => {
+    const key = formatLabel(asset);
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  const entries = Object.entries(counts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  const label = metric.querySelector("span");
+  const strong = metric.querySelector("strong");
+  const small = metric.querySelector("small");
+  if (label) label.textContent = "Live Assets";
+  if (strong) strong.textContent = liveAssets.length;
+  if (small) small.innerHTML = `<div class="format-breakdown">${entries.map(([name, count]) => `<span>${esc(name)} <b>${count}</b></span>`).join("")}</div>`;
+}
+
+function patchNewThisWeek() {
+  const metric = [...document.querySelectorAll(".metric")].find((item) => text(item.querySelector("span")) === "New This Week");
+  if (!metric) return;
+  const count = newThisWeekCount();
+  const strong = metric.querySelector("strong");
+  const small = metric.querySelector("small");
+  if (strong) strong.textContent = count;
+  if (small) {
+    const note = count === 0 ? "No new candidates from the latest crawl." : "New candidates surfaced by the crawler.";
+    small.innerHTML = `<span class="new-week-note">${note}</span>`;
+  }
 }
 
 function patchFunnelStage() {
@@ -152,6 +221,7 @@ function patchFunnelStage() {
 function patchLastUpdatedSummary() {
   const metric = [...document.querySelectorAll(".metric")].find((item) => text(item.querySelector("span")) === "Last Updated");
   if (!metric) return;
+  metric.dataset.crawlStatus = "true";
   const strong = metric.querySelector("strong");
   const small = metric.querySelector("small");
   const report = crawlReport || {};
@@ -167,6 +237,8 @@ function patchLastUpdatedSummary() {
 function patch() {
   styles();
   removeAllFilters();
+  patchLiveAssets();
+  patchNewThisWeek();
   patchFunnelStage();
   patchLastUpdatedSummary();
 }
