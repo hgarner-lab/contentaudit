@@ -13,15 +13,8 @@ const assets = () => {
 const text = (node) => node?.textContent?.trim() || "";
 const esc = (value) => String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
 
-function contentUseLabel(asset) {
-  const value = [asset.content_usefulness, asset.funnel_stage, asset.format].join(" ");
-  if (/hero/i.test(value)) return "Hero";
-  if (/proof|report|statistic/i.test(value)) return "Proof";
-  if (/sales|follow/i.test(value)) return "Sales follow-up";
-  if (/social|executive/i.test(value)) return "Social/POV";
-  if (/thought/i.test(value)) return "Thought leadership";
-  if (/background/i.test(value)) return "Background";
-  return (asset.content_usefulness || "Other").replace(" asset", "");
+function funnelStageLabel(asset) {
+  return asset.funnel_stage || "Unassigned";
 }
 
 function styles() {
@@ -32,9 +25,9 @@ function styles() {
     .filter-chip.strong,
     .ui-filter-drawer { display: none !important; }
     .filter-bar { gap: 12px !important; }
-    .metric[data-content-use="true"] { min-height: 168px; }
-    .metric[data-content-use="true"] small { margin-top: 6px !important; }
-    .content-use-legend {
+    .metric[data-funnel-stage="true"] { min-height: 168px; }
+    .metric[data-funnel-stage="true"] small { margin-top: 6px !important; }
+    .funnel-stage-legend {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 5px 12px;
@@ -43,7 +36,7 @@ function styles() {
       font-size: 12px;
       line-height: 1.25;
     }
-    .content-use-legend span {
+    .funnel-stage-legend span {
       display: inline-flex !important;
       align-items: center;
       min-width: 0;
@@ -51,7 +44,7 @@ function styles() {
       font-size: 12px !important;
       white-space: nowrap;
     }
-    .content-use-legend i {
+    .funnel-stage-legend i {
       width: 8px;
       height: 8px;
       border-radius: 999px;
@@ -59,7 +52,7 @@ function styles() {
       margin-right: 6px;
     }
     @media (max-width: 1180px) {
-      .content-use-legend { grid-template-columns: 1fr; }
+      .funnel-stage-legend { grid-template-columns: 1fr; }
     }
   `;
   document.head.appendChild(tag);
@@ -72,19 +65,20 @@ function removeAllFilters() {
   document.querySelectorAll(".ui-filter-drawer").forEach((drawer) => drawer.remove());
 }
 
-function patchContentUses() {
+function patchFunnelStage() {
   const metric = [...document.querySelectorAll(".metric")].find((item) => {
     const label = text(item.querySelector("span"));
-    return label === "Content Uses" || label === "Formats";
+    return ["Funnel Stage", "Content Uses", "Formats"].includes(label);
   });
   if (!metric) return;
-  metric.dataset.contentUse = "true";
+  metric.dataset.funnelStage = "true";
+  metric.removeAttribute("data-content-use");
   const label = metric.querySelector("span");
   const strong = metric.querySelector("strong");
   const small = metric.querySelector("small");
-  if (label) label.textContent = "Content Uses";
+  if (label) label.textContent = "Funnel Stage";
   const counts = assets().reduce((acc, asset) => {
-    const key = contentUseLabel(asset);
+    const key = funnelStageLabel(asset);
     acc[key] = (acc[key] || 0) + 1;
     return acc;
   }, {});
@@ -100,13 +94,13 @@ function patchContentUses() {
     return item;
   }).join(", ");
   const legend = entries.map(([name, count], index) => `<span><i style="background:${colors[index % colors.length]}"></i>${esc(name)} ${count}</span>`).join("");
-  if (small) small.innerHTML = `<div class="donut" style="background:conic-gradient(${gradient})" aria-hidden="true"></div><div class="content-use-legend">${legend}</div>`;
+  if (small) small.innerHTML = `<div class="donut" style="background:conic-gradient(${gradient})" aria-hidden="true"></div><div class="funnel-stage-legend">${legend}</div>`;
 }
 
 function patch() {
   styles();
   removeAllFilters();
-  patchContentUses();
+  patchFunnelStage();
 }
 function queue() {
   if (queued) return;
