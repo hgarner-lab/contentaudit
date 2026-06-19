@@ -20,7 +20,8 @@ function clickNav(label) {
 function focusActions() {
   const card = document.querySelector(".next-action-coach");
   if (!card) return;
-  if (card.dataset.actionFocus === "true") return;
+  const alreadyCurrent = card.classList.contains("action-focused") && card.querySelector("[data-primary-action='campaign']") && card.querySelector("[data-primary-action='coverage']");
+  if (alreadyCurrent) return;
   card.dataset.actionFocus = "true";
   card.classList.add("action-focused");
   card.innerHTML = `
@@ -71,6 +72,7 @@ document.addEventListener("click", (event) => {
   if (name === "campaign") clickNav("Campaign Planner");
   if (name === "coverage") clickNav("Topic Maps");
   if (name === "content") document.querySelector(".results-shell")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  setTimeout(queue, 0);
 }, true);
 
 new MutationObserver(queue).observe(document.body, { childList: true, subtree: true });
